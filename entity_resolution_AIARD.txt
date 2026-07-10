@@ -1,0 +1,590 @@
+Entity Resolution (ER) is arguably the most important next layer because it shifts the system from:
+
+> "Managing hypotheses"
+
+to
+
+> "Managing reality models."
+
+The challenge is that the same real-world thing can appear under many names, identifiers, observations, and sources.
+
+Examples:
+
+```text
+APT29
+Cozy Bear
+The Dukes
+NOBELIUM
+Entity #447
+```
+
+All may refer to the same underlying actor.
+
+Likewise:
+
+```text
+John Smith
+J. Smith
+john.smith@email.com
+@j_smith
+Person #992
+```
+
+may represent one human.
+
+The database should distinguish between:
+
+* **Claims** (what sources say)
+* **Representations** (names, aliases, identifiers)
+* **Entities** (the actual thing)
+
+***
+
+# Resolution Architecture
+
+Think of it as a layered model.
+
+```text
+SOURCE
+   ↓
+OBSERVATION
+   ↓
+ATTRIBUTION CLAIM
+   ↓
+REPRESENTATION
+   ↓
+ENTITY
+```
+
+Example:
+
+```text
+Observation:
+"NOBELIUM used domain X"
+
+Representation:
+NOBELIUM
+
+Resolved Entity:
+Russian Intelligence Group #17
+```
+
+The observation never changes.
+
+The interpretation can.
+
+***
+
+# Master Entity Table
+
+Every real-world object gets a record.
+
+```sql
+CREATE TABLE entities (
+
+    entity_id BIGSERIAL PRIMARY KEY,
+
+    entity_type VARCHAR(50) NOT NULL,
+
+    canonical_name VARCHAR(500),
+
+    description TEXT,
+
+    confidence_score NUMERIC(5,2),
+
+    first_seen TIMESTAMP,
+
+    last_seen TIMESTAMP,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+Entity types:
+
+```text
+PERSON
+ORGANIZATION
+GROUP
+HOST
+DOMAIN
+EMAIL
+ACCOUNT
+MALWARE
+CAMPAIGN
+LOCATION
+DEVICE
+DOCUMENT
+EVENT
+VEHICLE
+AIRCRAFT
+VESSEL
+```
+
+***
+
+# Entity Aliases
+
+Stores alternative names.
+
+```sql
+CREATE TABLE entity_aliases (
+
+    alias_id BIGSERIAL PRIMARY KEY,
+
+    entity_id BIGINT NOT NULL,
+
+    alias_value VARCHAR(1000),
+
+    alias_type VARCHAR(100),
+
+    source_id BIGINT,
+
+    confidence_score NUMERIC(5,2),
+
+    FOREIGN KEY(entity_id)
+        REFERENCES entities(entity_id),
+
+    FOREIGN KEY(source_id)
+        REFERENCES sources(source_id)
+);
+```
+
+Examples:
+
+```text
+APT29
+Cozy Bear
+NOBELIUM
+MIDNIGHT BLIZZARD
+```
+
+All attached to one entity.
+
+***
+
+# Entity Identifiers
+
+Machine-readable identifiers.
+
+```sql
+CREATE TABLE entity_identifiers (
+
+    identifier_id BIGSERIAL PRIMARY KEY,
+
+    entity_id BIGINT NOT NULL,
+
+    identifier_type VARCHAR(100),
+
+    identifier_value VARCHAR(1000),
+
+    valid_from TIMESTAMP,
+
+    valid_to TIMESTAMP,
+
+    FOREIGN KEY(entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+Email
+Phone
+Domain
+Passport Number
+Hash
+IP Address
+Wallet Address
+UUID
+```
+
+***
+
+# Entity Attributes
+
+Generic extensible properties.
+
+```sql
+CREATE TABLE entity_attributes (
+
+    attribute_id BIGSERIAL PRIMARY KEY,
+
+    entity_id BIGINT NOT NULL,
+
+    attribute_name VARCHAR(200),
+
+    attribute_value TEXT,
+
+    confidence_score NUMERIC(5,2),
+
+    FOREIGN KEY(entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+Nationality = Canadian
+
+Aircraft_Type = Su-35
+
+Registration = N12345
+```
+
+***
+
+# Entity Relationships
+
+This becomes your intelligence graph.
+
+```sql
+CREATE TABLE entity_relationships (
+
+    relationship_id BIGSERIAL PRIMARY KEY,
+
+    source_entity_id BIGINT NOT NULL,
+
+    target_entity_id BIGINT NOT NULL,
+
+    relationship_type VARCHAR(200),
+
+    confidence_score NUMERIC(5,2),
+
+    valid_from TIMESTAMP,
+
+    valid_to TIMESTAMP,
+
+    notes TEXT,
+
+    FOREIGN KEY(source_entity_id)
+        REFERENCES entities(entity_id),
+
+    FOREIGN KEY(target_entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+PERSON
+  MEMBER_OF
+ORGANIZATION
+
+IP
+  HOSTS
+DOMAIN
+
+MALWARE
+  USED_BY
+GROUP
+```
+
+***
+
+# Observation Entity Mapping
+
+Link observations to entities.
+
+```sql
+CREATE TABLE observation_entities (
+
+    observation_entity_id BIGSERIAL PRIMARY KEY,
+
+    observation_id BIGINT NOT NULL,
+
+    entity_id BIGINT NOT NULL,
+
+    extraction_method VARCHAR(100),
+
+    confidence_score NUMERIC(5,2),
+
+    FOREIGN KEY(observation_id)
+        REFERENCES observations(observation_id),
+
+    FOREIGN KEY(entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+This is where OSINT extraction occurs.
+
+Example:
+
+```text
+Observation:
+"APT29 registered domain"
+
+Entities:
+APT29
+Domain XYZ
+```
+
+***
+
+# Resolution Candidates
+
+Before merging records.
+
+```sql
+CREATE TABLE resolution_candidates (
+
+    candidate_id BIGSERIAL PRIMARY KEY,
+
+    source_entity_id BIGINT,
+
+    target_entity_id BIGINT,
+
+    match_score NUMERIC(5,2),
+
+    algorithm VARCHAR(100),
+
+    reviewed BOOLEAN DEFAULT FALSE,
+
+    approved BOOLEAN,
+
+    reviewed_by BIGINT,
+
+    review_notes TEXT
+);
+```
+
+Examples:
+
+```text
+Entity 112
+Entity 847
+
+Match Score: 93%
+```
+
+Analyst approves merge.
+
+***
+
+# Entity Merge History
+
+Never delete information.
+
+```sql
+CREATE TABLE entity_merge_history (
+
+    merge_id BIGSERIAL PRIMARY KEY,
+
+    surviving_entity_id BIGINT,
+
+    merged_entity_id BIGINT,
+
+    merged_at TIMESTAMP,
+
+    merged_by BIGINT,
+
+    rationale TEXT
+);
+```
+
+Critical for auditability.
+
+***
+
+# Claim-Based Model
+
+One of the biggest mistakes ER systems make is storing conclusions as facts.
+
+Instead:
+
+```sql
+CREATE TABLE claims (
+
+    claim_id BIGSERIAL PRIMARY KEY,
+
+    source_id BIGINT,
+
+    claim_text TEXT,
+
+    claim_date TIMESTAMP,
+
+    confidence_score NUMERIC(5,2)
+);
+```
+
+Examples:
+
+```text
+Source claims Actor X controls malware Y.
+```
+
+Then:
+
+```sql
+CREATE TABLE claim_entities (
+
+    claim_entity_id BIGSERIAL PRIMARY KEY,
+
+    claim_id BIGINT,
+
+    entity_id BIGINT,
+
+    role VARCHAR(100)
+);
+```
+
+This preserves provenance.
+
+***
+
+# Hypothesis-to-Entity Integration
+
+Now hypotheses become entity-aware.
+
+```sql
+CREATE TABLE hypothesis_entities (
+
+    hypothesis_entity_id BIGSERIAL PRIMARY KEY,
+
+    hypothesis_id BIGINT,
+
+    entity_id BIGINT,
+
+    role VARCHAR(100),
+
+    confidence_score NUMERIC(5,2),
+
+    FOREIGN KEY(hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id),
+
+    FOREIGN KEY(entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Example:
+
+```text
+Hypothesis:
+
+Actor A conducted intrusion.
+
+Entities:
+
+Actor A
+Victim B
+Infrastructure C
+```
+
+***
+
+# Confidence Propagation
+
+An advanced feature:
+
+```sql
+CREATE TABLE entity_confidence_factors (
+
+    factor_id BIGSERIAL PRIMARY KEY,
+
+    entity_id BIGINT,
+
+    factor_type VARCHAR(100),
+
+    score NUMERIC(5,2),
+
+    rationale TEXT
+);
+```
+
+Contributors:
+
+```text
+Alias Match
+
+Behavioral Match
+
+Co-location
+
+Temporal Correlation
+
+Infrastructure Overlap
+
+Human Validation
+```
+
+This allows explainable resolution.
+
+***
+
+# Universal Entity Model
+
+Ultimately, every object becomes:
+
+```text
+Entity
+    |
+    +-- Aliases
+    |
+    +-- Identifiers
+    |
+    +-- Attributes
+    |
+    +-- Relationships
+    |
+    +-- Observations
+    |
+    +-- Claims
+    |
+    +-- Hypotheses
+```
+
+***
+
+# Example Intelligence Query
+
+Find all hypotheses involving a resolved actor:
+
+```sql
+SELECT
+    h.hypothesis_title,
+    e.canonical_name
+FROM hypotheses h
+JOIN hypothesis_entities he
+    ON h.hypothesis_id = he.hypothesis_id
+JOIN entities e
+    ON he.entity_id = e.entity_id
+WHERE e.canonical_name = 'APT29';
+```
+
+Find all observations related to an aircraft:
+
+```sql
+SELECT
+    o.observation_text
+FROM observations o
+JOIN observation_entities oe
+    ON o.observation_id = oe.observation_id
+JOIN entities e
+    ON oe.entity_id = e.entity_id
+WHERE e.canonical_name = 'Su-35';
+```
+
+***
+
+## Recommended Future Layer: Entity-Centric Intelligence
+
+If you continue this design, I'd add a supertype/subtype model:
+
+```text
+ENTITY
+├── PERSON
+├── ORGANIZATION
+├── LOCATION
+├── EVENT
+├── INFRASTRUCTURE
+├── CAMPAIGN
+├── TECHNICAL_OBJECT
+└── DOCUMENT
+```
+
+and then build all observations, evidence, hypotheses, and decisions around entities. At that point the database becomes not merely an abductive reasoning repository, but a full **Entity-Centric Analytical Reasoning and Intelligence Platform** where every assessment can be traced back to observations, evidence, entities, assumptions, and decisions.
