@@ -1,0 +1,636 @@
+Once you move to a **supertype/subtype architecture**, the database stops being a collection of records and starts becoming a formal representation of the analyst's world model.
+
+This pattern is used in many intelligence, law enforcement, fraud, cyber, and knowledge-management systems:
+
+```text
+ENTITY (supertype)
+│
+├── PERSON
+├── ORGANIZATION
+├── LOCATION
+├── EVENT
+├── DOCUMENT
+├── TECHNICAL_OBJECT
+├── INFRASTRUCTURE
+├── CAMPAIGN
+└── DIGITAL_IDENTITY
+```
+
+The advantages are:
+
+* Common fields exist once
+* Specialized fields exist only where relevant
+* New entity types can be added later
+* Relationships become universal
+
+***
+
+# Core Supertype
+
+## Entity
+
+Every real-world thing starts here.
+
+```sql
+CREATE TABLE entities (
+
+    entity_id BIGSERIAL PRIMARY KEY,
+
+    entity_type VARCHAR(50) NOT NULL,
+
+    canonical_name VARCHAR(500),
+
+    description TEXT,
+
+    confidence_score NUMERIC(5,2),
+
+    first_seen TIMESTAMP,
+
+    last_seen TIMESTAMP,
+
+    status VARCHAR(50),
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+Examples:
+
+```text
+Person
+Organization
+Aircraft
+IP Address
+Malware
+Battle
+Company
+Country
+```
+
+***
+
+# Person Subtype
+
+```sql
+CREATE TABLE persons (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    given_name VARCHAR(200),
+
+    middle_name VARCHAR(200),
+
+    family_name VARCHAR(200),
+
+    birth_date DATE,
+
+    nationality VARCHAR(100),
+
+    gender VARCHAR(50),
+
+    deceased BOOLEAN,
+
+    FOREIGN KEY (entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+Analyst
+Threat Actor
+CEO
+Politician
+Pilot
+Researcher
+```
+
+***
+
+# Organization Subtype
+
+```sql
+CREATE TABLE organizations (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    organization_type VARCHAR(100),
+
+    formed_date DATE,
+
+    dissolved_date DATE,
+
+    headquarters_entity_id BIGINT,
+
+    FOREIGN KEY (entity_id)
+        REFERENCES entities(entity_id),
+
+    FOREIGN KEY (headquarters_entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+Microsoft
+APT Group
+Government Agency
+Military Unit
+Nonprofit
+```
+
+***
+
+# Location Subtype
+
+```sql
+CREATE TABLE locations (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    location_type VARCHAR(100),
+
+    latitude NUMERIC(10,7),
+
+    longitude NUMERIC(10,7),
+
+    country_code VARCHAR(5),
+
+    administrative_region VARCHAR(200),
+
+    FOREIGN KEY (entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+Building
+Airport
+Province
+Country
+Data Center
+```
+
+***
+
+# Event Subtype
+
+Events are crucial because many investigations revolve around them.
+
+```sql
+CREATE TABLE events (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    event_type VARCHAR(100),
+
+    start_time TIMESTAMP,
+
+    end_time TIMESTAMP,
+
+    location_entity_id BIGINT,
+
+    FOREIGN KEY (entity_id)
+        REFERENCES entities(entity_id),
+
+    FOREIGN KEY (location_entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+Cyber Intrusion
+Battle
+Conference
+Acquisition
+Meeting
+Incident
+```
+
+***
+
+# Infrastructure Subtype
+
+Useful for cyber, telecom, and technical intelligence.
+
+```sql
+CREATE TABLE infrastructure (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    infrastructure_type VARCHAR(100),
+
+    owner_entity_id BIGINT,
+
+    operational_status VARCHAR(50),
+
+    FOREIGN KEY (entity_id)
+        REFERENCES entities(entity_id),
+
+    FOREIGN KEY (owner_entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+Server
+Domain
+IP Address
+Router
+Cloud Tenant
+Satellite Link
+```
+
+***
+
+# Digital Identity
+
+Separates people from accounts.
+
+```sql
+CREATE TABLE digital_identities (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    identity_type VARCHAR(100),
+
+    username VARCHAR(500),
+
+    platform VARCHAR(200),
+
+    FOREIGN KEY (entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+Twitter Account
+GitHub User
+Discord Account
+Email Address
+```
+
+***
+
+# Document Subtype
+
+```sql
+CREATE TABLE documents (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    document_type VARCHAR(100),
+
+    publication_date DATE,
+
+    version_number VARCHAR(100),
+
+    author_entity_id BIGINT,
+
+    FOREIGN KEY (entity_id)
+        REFERENCES entities(entity_id),
+
+    FOREIGN KEY (author_entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+Report
+Memo
+Whitepaper
+Leak
+Email
+```
+
+***
+
+# Campaign Subtype
+
+Very important for intelligence work.
+
+```sql
+CREATE TABLE campaigns (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    campaign_type VARCHAR(100),
+
+    start_date DATE,
+
+    end_date DATE,
+
+    objective TEXT,
+
+    FOREIGN KEY (entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+Influence Campaign
+Cyber Campaign
+Disinformation Campaign
+Military Campaign
+```
+
+***
+
+# Technical Object Superclass
+
+Weapon systems, malware, sensors, vehicles, platforms.
+
+```sql
+CREATE TABLE technical_objects (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    technical_type VARCHAR(100),
+
+    manufacturer_entity_id BIGINT,
+
+    FOREIGN KEY (entity_id)
+        REFERENCES entities(entity_id),
+
+    FOREIGN KEY (manufacturer_entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+***
+
+# Aircraft Subtype
+
+```sql
+CREATE TABLE aircraft (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    aircraft_type VARCHAR(100),
+
+    wingspan_m NUMERIC(10,2),
+
+    max_speed_kmh NUMERIC(10,2),
+
+    crew_count INTEGER,
+
+    FOREIGN KEY (entity_id)
+        REFERENCES technical_objects(entity_id)
+);
+```
+
+***
+
+# Vehicle Subtype
+
+```sql
+CREATE TABLE vehicles (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    vehicle_class VARCHAR(100),
+
+    weight_tons NUMERIC(10,2),
+
+    propulsion_type VARCHAR(100),
+
+    FOREIGN KEY (entity_id)
+        REFERENCES technical_objects(entity_id)
+);
+```
+
+***
+
+# Vessel Subtype
+
+```sql
+CREATE TABLE vessels (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    vessel_class VARCHAR(100),
+
+    displacement_tons NUMERIC(12,2),
+
+    hull_number VARCHAR(100),
+
+    FOREIGN KEY (entity_id)
+        REFERENCES technical_objects(entity_id)
+);
+```
+
+***
+
+# Malware Subtype
+
+Very useful for CTI.
+
+```sql
+CREATE TABLE malware (
+
+    entity_id BIGINT PRIMARY KEY,
+
+    malware_family VARCHAR(200),
+
+    malware_type VARCHAR(100),
+
+    language VARCHAR(100),
+
+    first_observed DATE,
+
+    FOREIGN KEY (entity_id)
+        REFERENCES technical_objects(entity_id)
+);
+```
+
+***
+
+# Universal Relationship Engine
+
+This becomes the heart of the platform.
+
+```sql
+CREATE TABLE entity_relationships (
+
+    relationship_id BIGSERIAL PRIMARY KEY,
+
+    source_entity_id BIGINT NOT NULL,
+
+    target_entity_id BIGINT NOT NULL,
+
+    relationship_type VARCHAR(100) NOT NULL,
+
+    confidence_score NUMERIC(5,2),
+
+    valid_from TIMESTAMP,
+
+    valid_to TIMESTAMP,
+
+    notes TEXT,
+
+    FOREIGN KEY (source_entity_id)
+        REFERENCES entities(entity_id),
+
+    FOREIGN KEY (target_entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Examples:
+
+```text
+PERSON
+    EMPLOYED_BY
+ORGANIZATION
+
+PERSON
+    OPERATES
+ACCOUNT
+
+GROUP
+    USES
+MALWARE
+
+MALWARE
+    COMMUNICATES_WITH
+INFRASTRUCTURE
+
+EVENT
+    OCCURRED_AT
+LOCATION
+
+CAMPAIGN
+    TARGETS
+ORGANIZATION
+```
+
+***
+
+# Roles in Events
+
+A very useful pattern.
+
+```sql
+CREATE TABLE entity_event_roles (
+
+    entity_event_role_id BIGSERIAL PRIMARY KEY,
+
+    entity_id BIGINT NOT NULL,
+
+    event_id BIGINT NOT NULL,
+
+    role_name VARCHAR(100),
+
+    confidence_score NUMERIC(5,2),
+
+    FOREIGN KEY (entity_id)
+        REFERENCES entities(entity_id),
+
+    FOREIGN KEY (event_id)
+        REFERENCES events(entity_id)
+);
+```
+
+Examples:
+
+```text
+Victim
+
+Attacker
+
+Observer
+
+Sponsor
+
+Participant
+```
+
+***
+
+# Temporal Truth Model
+
+Add temporal validity to nearly everything.
+
+```sql
+CREATE TABLE entity_state_history (
+
+    state_id BIGSERIAL PRIMARY KEY,
+
+    entity_id BIGINT,
+
+    state_name VARCHAR(100),
+
+    state_value TEXT,
+
+    effective_from TIMESTAMP,
+
+    effective_to TIMESTAMP,
+
+    FOREIGN KEY(entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Example:
+
+```text
+Organization Status
+=
+Active
+
+2020-01-01 through Present
+```
+
+***
+
+# Intelligence-Centric Extension
+
+Eventually I would add:
+
+```sql
+CREATE TABLE collection_requirements
+CREATE TABLE information_gaps
+CREATE TABLE analytic_questions
+CREATE TABLE priority_intelligence_requirements
+CREATE TABLE competing_hypotheses
+CREATE TABLE deception_indicators
+CREATE TABLE cognitive_bias_checks
+```
+
+This would allow the platform to track not only:
+
+```text
+What we know
+```
+
+but also:
+
+```text
+What we don't know
+
+What we think
+
+Why we think it
+
+How sure we are
+
+How we might be wrong
+```
+
+At that point the schema evolves from a standard entity-resolution system into a true **Entity-Centric Abductive Intelligence Database**, where observations, entities, hypotheses, assumptions, confidence, decisions, and outcomes are all connected within a single relational reasoning framework.
