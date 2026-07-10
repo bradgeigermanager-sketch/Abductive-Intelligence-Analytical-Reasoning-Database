@@ -1,0 +1,586 @@
+A production-grade PostgreSQL schema for an **Abductive Intelligence & Analytical Reasoning Database (AIARD)** designed to support:
+
+* Observations (facts)
+* Sources
+* Investigations
+* Alternative hypotheses
+* Evidence mapping
+* Assumptions
+* Confidence assessments
+* Indicators/predictions
+* Decisions
+* Outcomes
+* Analyst notes
+* Auditability
+
+This schema is normalized and designed to preserve the full reasoning chain.
+
+***
+
+# Lookup Tables
+
+```sql
+CREATE TABLE likelihood_lookup (
+    likelihood_code VARCHAR(30) PRIMARY KEY,
+    min_probability NUMERIC(5,2),
+    max_probability NUMERIC(5,2),
+    description TEXT
+);
+
+INSERT INTO likelihood_lookup VALUES
+('REMOTE', 0, 20, 'Less than 20% likely'),
+('POSSIBLE', 20, 45, 'Between 20% and 45%'),
+('ROUGHLY_EVEN', 45, 55, 'Approximately equal likelihood'),
+('LIKELY', 55, 80, 'More likely than not'),
+('HIGHLY_LIKELY', 80, 100, 'Very likely');
+```
+
+```sql
+CREATE TABLE confidence_lookup (
+    confidence_code VARCHAR(20) PRIMARY KEY,
+    description TEXT
+);
+
+INSERT INTO confidence_lookup VALUES
+('LOW', 'Sparse, conflicting or incomplete evidence'),
+('MODERATE', 'Some corroboration exists'),
+('HIGH', 'Strong corroborated evidence');
+```
+
+```sql
+CREATE TABLE relationship_lookup (
+    relationship_code VARCHAR(20) PRIMARY KEY,
+    description TEXT
+);
+
+INSERT INTO relationship_lookup VALUES
+('SUPPORTS', 'Evidence supports hypothesis'),
+('CONTRADICTS', 'Evidence contradicts hypothesis'),
+('NEUTRAL', 'Evidence neither supports nor contradicts');
+```
+
+```sql
+CREATE TABLE criticality_lookup (
+    criticality_code VARCHAR(20) PRIMARY KEY
+);
+
+INSERT INTO criticality_lookup VALUES
+('LOW'),
+('MEDIUM'),
+('HIGH'),
+('CRITICAL');
+```
+
+***
+
+# Users / Analysts
+
+```sql
+CREATE TABLE analysts (
+    analyst_id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    full_name VARCHAR(200),
+    email VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+***
+
+# Investigations
+
+```sql
+CREATE TABLE investigations (
+    investigation_id BIGSERIAL PRIMARY KEY,
+
+    title VARCHAR(300) NOT NULL,
+    description TEXT,
+
+    domain VARCHAR(100),
+    status VARCHAR(50),
+
+    priority VARCHAR(25),
+
+    lead_analyst_id BIGINT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP,
+
+    FOREIGN KEY (lead_analyst_id)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+***
+
+# Sources
+
+```sql
+CREATE TABLE sources (
+    source_id BIGSERIAL PRIMARY KEY,
+
+    source_name VARCHAR(300) NOT NULL,
+
+    source_type VARCHAR(100),
+
+    reliability_rating INTEGER
+        CHECK (reliability_rating BETWEEN 1 AND 5),
+
+    description TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+Examples:
+
+* HUMINT
+* OSINT
+* SIGINT
+* Telemetry
+* Social Media
+* News Reporting
+
+***
+
+# Observations
+
+Observations are facts.
+
+```sql
+CREATE TABLE observations (
+    observation_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT NOT NULL,
+
+    source_id BIGINT,
+
+    observation_time TIMESTAMP,
+
+    observation_text TEXT NOT NULL,
+
+    confidence_code VARCHAR(20),
+
+    recorded_by BIGINT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (investigation_id)
+        REFERENCES investigations(investigation_id),
+
+    FOREIGN KEY (source_id)
+        REFERENCES sources(source_id),
+
+    FOREIGN KEY (recorded_by)
+        REFERENCES analysts(analyst_id),
+
+    FOREIGN KEY (confidence_code)
+        REFERENCES confidence_lookup(confidence_code)
+);
+```
+
+***
+
+# Tags
+
+```sql
+CREATE TABLE tags (
+    tag_id BIGSERIAL PRIMARY KEY,
+    tag_name VARCHAR(100) UNIQUE
+);
+```
+
+```sql
+CREATE TABLE observation_tags (
+    observation_id BIGINT,
+    tag_id BIGINT,
+
+    PRIMARY KEY (observation_id, tag_id),
+
+    FOREIGN KEY (observation_id)
+        REFERENCES observations(observation_id),
+
+    FOREIGN KEY (tag_id)
+        REFERENCES tags(tag_id)
+);
+```
+
+***
+
+# Hypotheses
+
+```sql
+CREATE TABLE hypotheses (
+    hypothesis_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT NOT NULL,
+
+    hypothesis_title VARCHAR(300),
+
+    hypothesis_text TEXT NOT NULL,
+
+    likelihood_code VARCHAR(30),
+
+    confidence_code VARCHAR(20),
+
+    status VARCHAR(50),
+
+    created_by BIGINT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (investigation_id)
+        REFERENCES investigations(investigation_id),
+
+    FOREIGN KEY (created_by)
+        REFERENCES analysts(analyst_id),
+
+    FOREIGN KEY (likelihood_code)
+        REFERENCES likelihood_lookup(likelihood_code),
+
+    FOREIGN KEY (confidence_code)
+        REFERENCES confidence_lookup(confidence_code)
+);
+```
+
+Example:
+
+```text
+H1 - Actor X Controls Infrastructure
+
+H2 - Infrastructure Shared by Multiple Actors
+
+H3 - Benign Research Activity
+```
+
+***
+
+# Evidence Mapping
+
+Links facts to theories.
+
+```sql
+CREATE TABLE evidence_links (
+    evidence_link_id BIGSERIAL PRIMARY KEY,
+
+    hypothesis_id BIGINT NOT NULL,
+
+    observation_id BIGINT NOT NULL,
+
+    relationship_code VARCHAR(20),
+
+    strength_score INTEGER
+        CHECK (strength_score BETWEEN 1 AND 10),
+
+    analyst_notes TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id),
+
+    FOREIGN KEY (observation_id)
+        REFERENCES observations(observation_id),
+
+    FOREIGN KEY (relationship_code)
+        REFERENCES relationship_lookup(relationship_code)
+);
+```
+
+***
+
+# Assumptions
+
+Explicitly capture hidden reasoning.
+
+```sql
+CREATE TABLE assumptions (
+    assumption_id BIGSERIAL PRIMARY KEY,
+
+    hypothesis_id BIGINT NOT NULL,
+
+    assumption_text TEXT NOT NULL,
+
+    criticality_code VARCHAR(20),
+
+    validated BOOLEAN DEFAULT FALSE,
+
+    validation_notes TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id),
+
+    FOREIGN KEY (criticality_code)
+        REFERENCES criticality_lookup(criticality_code)
+);
+```
+
+Example:
+
+```text
+Infrastructure ownership has not changed.
+```
+
+***
+
+# Indicators
+
+Predictions generated by hypotheses.
+
+```sql
+CREATE TABLE indicators (
+    indicator_id BIGSERIAL PRIMARY KEY,
+
+    hypothesis_id BIGINT NOT NULL,
+
+    indicator_text TEXT NOT NULL,
+
+    expected_by DATE,
+
+    observed BOOLEAN,
+
+    observation_date DATE,
+
+    notes TEXT,
+
+    FOREIGN KEY (hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id)
+);
+```
+
+Example:
+
+```text
+Additional domains should appear within 30 days.
+```
+
+***
+
+# Confidence Assessment Components
+
+```sql
+CREATE TABLE confidence_assessments (
+    confidence_assessment_id BIGSERIAL PRIMARY KEY,
+
+    hypothesis_id BIGINT NOT NULL UNIQUE,
+
+    source_reliability_score INTEGER
+        CHECK (source_reliability_score BETWEEN 1 AND 5),
+
+    evidence_quality_score INTEGER
+        CHECK (evidence_quality_score BETWEEN 1 AND 5),
+
+    data_completeness_score INTEGER
+        CHECK (data_completeness_score BETWEEN 1 AND 5),
+
+    analyst_confidence_score INTEGER
+        CHECK (analyst_confidence_score BETWEEN 1 AND 5),
+
+    overall_confidence VARCHAR(20),
+
+    rationale TEXT,
+
+    FOREIGN KEY (hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id),
+
+    FOREIGN KEY (overall_confidence)
+        REFERENCES confidence_lookup(confidence_code)
+);
+```
+
+***
+
+# Decisions
+
+Captures the action taken.
+
+```sql
+CREATE TABLE decisions (
+    decision_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT NOT NULL,
+
+    decision_title VARCHAR(300),
+
+    decision_text TEXT,
+
+    rationale TEXT,
+
+    risk_level VARCHAR(50),
+
+    approved_by BIGINT,
+
+    decision_date TIMESTAMP,
+
+    FOREIGN KEY (investigation_id)
+        REFERENCES investigations(investigation_id),
+
+    FOREIGN KEY (approved_by)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+***
+
+# Outcomes
+
+Used for hindsight validation.
+
+```sql
+CREATE TABLE outcomes (
+    outcome_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT NOT NULL,
+
+    hypothesis_id BIGINT,
+
+    outcome_text TEXT,
+
+    outcome_status VARCHAR(50),
+
+    accuracy_score INTEGER
+        CHECK (accuracy_score BETWEEN 1 AND 10),
+
+    validated_by BIGINT,
+
+    validated_at TIMESTAMP,
+
+    FOREIGN KEY (investigation_id)
+        REFERENCES investigations(investigation_id),
+
+    FOREIGN KEY (hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id),
+
+    FOREIGN KEY (validated_by)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+***
+
+# Analyst Notes
+
+```sql
+CREATE TABLE analyst_notes (
+    note_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT,
+
+    hypothesis_id BIGINT,
+
+    analyst_id BIGINT,
+
+    note_text TEXT NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (investigation_id)
+        REFERENCES investigations(investigation_id),
+
+    FOREIGN KEY (hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id),
+
+    FOREIGN KEY (analyst_id)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+***
+
+# Audit Trail
+
+Critical for intelligence work.
+
+```sql
+CREATE TABLE audit_log (
+    audit_id BIGSERIAL PRIMARY KEY,
+
+    table_name VARCHAR(100),
+
+    record_id BIGINT,
+
+    action_type VARCHAR(20),
+
+    modified_by BIGINT,
+
+    modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    previous_value JSONB,
+
+    new_value JSONB,
+
+    FOREIGN KEY (modified_by)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+***
+
+# Assessment View
+
+Useful for executive dashboards.
+
+```sql
+CREATE VIEW investigation_assessments AS
+SELECT
+
+    i.investigation_id,
+    i.title,
+
+    h.hypothesis_id,
+    h.hypothesis_title,
+
+    h.likelihood_code,
+
+    h.confidence_code,
+
+    COUNT(DISTINCT e.evidence_link_id)
+        AS evidence_count,
+
+    COUNT(DISTINCT a.assumption_id)
+        AS assumption_count,
+
+    COUNT(DISTINCT ind.indicator_id)
+        AS indicator_count
+
+FROM investigations i
+
+JOIN hypotheses h
+    ON i.investigation_id = h.investigation_id
+
+LEFT JOIN evidence_links e
+    ON h.hypothesis_id = e.hypothesis_id
+
+LEFT JOIN assumptions a
+    ON h.hypothesis_id = a.hypothesis_id
+
+LEFT JOIN indicators ind
+    ON h.hypothesis_id = ind.hypothesis_id
+
+GROUP BY
+    i.investigation_id,
+    i.title,
+    h.hypothesis_id,
+    h.hypothesis_title,
+    h.likelihood_code,
+    h.confidence_code;
+```
+
+***
+
+## Future Extensions
+
+Next add:
+
+* Entity Resolution (`persons`, `organizations`, `infrastructure`, `locations`)
+* Bayesian probability updates
+* ACH (Analysis of Competing Hypotheses) scoring tables
+* Link-analysis tables
+* Collection requirements management
+* Structured confidence mathematics
+* Knowledge graph synchronization layer
+* Evidence provenance chain-of-custody
+
+-From a reasoning repository into a full-fledged intelligence analysis platform.
