@@ -1,0 +1,610 @@
+Below is a draft **JSON Schema (Draft 2020-12)** for the AIARD (Abductive Intelligence Analytical Reasoning Database) domain model. Rather than mirroring every SQL table 1:1, this schema represents the **canonical exchange format** that applications, APIs, ETL pipelines, LLM agents, and ML workflows can use.
+
+# Top-Level Investigation Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aiard.org/schema/investigation.json",
+  "title": "AIARD Investigation",
+  "type": "object",
+  "required": [
+    "investigationId",
+    "title",
+    "observations",
+    "hypotheses"
+  ],
+  "properties": {
+    "investigationId": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "domain": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "leadAnalyst": {
+      "$ref": "#/$defs/Analyst"
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Observation"
+      }
+    },
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Hypothesis"
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Recommendation"
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Decision"
+      }
+    },
+    "outcomes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Outcome"
+      }
+    }
+  },
+  "$defs": {
+
+    "Likelihood": {
+      "type": "string",
+      "enum": [
+        "REMOTE",
+        "POSSIBLE",
+        "ROUGHLY_EVEN",
+        "LIKELY",
+        "HIGHLY_LIKELY"
+      ]
+    },
+
+    "Confidence": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MODERATE",
+        "HIGH"
+      ]
+    },
+
+    "Analyst": {
+      "type": "object",
+      "required": ["analystId","username"],
+      "properties": {
+        "analystId": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "fullName": {
+          "type": "string"
+        }
+      }
+    },
+
+    "Source": {
+      "type": "object",
+      "required": [
+        "sourceId",
+        "sourceType"
+      ],
+      "properties": {
+        "sourceId": {
+          "type": "string"
+        },
+        "sourceName": {
+          "type": "string"
+        },
+        "sourceType": {
+          "type": "string"
+        },
+        "reliability": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    },
+
+    "Observation": {
+      "type": "object",
+      "required": [
+        "observationId",
+        "observationText"
+      ],
+      "properties": {
+        "observationId": {
+          "type": "string"
+        },
+        "observationText": {
+          "type": "string"
+        },
+        "observationTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntityReference"
+          }
+        }
+      }
+    },
+
+    "Hypothesis": {
+      "type": "object",
+      "required": [
+        "hypothesisId",
+        "hypothesisText"
+      ],
+      "properties": {
+        "hypothesisId": {
+          "type": "string"
+        },
+        "hypothesisTitle": {
+          "type": "string"
+        },
+        "hypothesisText": {
+          "type": "string"
+        },
+        "likelihood": {
+          "$ref": "#/$defs/Likelihood"
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "supportingEvidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceLink"
+          }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Assumption"
+          }
+        },
+        "indicators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Indicator"
+          }
+        }
+      }
+    },
+
+    "EvidenceLink": {
+      "type": "object",
+      "required": [
+        "observationId",
+        "relationship"
+      ],
+      "properties": {
+        "observationId": {
+          "type": "string"
+        },
+        "relationship": {
+          "type": "string",
+          "enum": [
+            "SUPPORTS",
+            "CONTRADICTS",
+            "NEUTRAL"
+          ]
+        },
+        "strength": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        }
+      }
+    },
+
+    "Assumption": {
+      "type": "object",
+      "required": [
+        "assumptionText"
+      ],
+      "properties": {
+        "assumptionId": {
+          "type": "string"
+        },
+        "assumptionText": {
+          "type": "string"
+        },
+        "criticality": {
+          "type": "string",
+          "enum": [
+            "LOW",
+            "MEDIUM",
+            "HIGH",
+            "CRITICAL"
+          ]
+        },
+        "validated": {
+          "type": "boolean"
+        }
+      }
+    },
+
+    "Indicator": {
+      "type": "object",
+      "required": [
+        "indicatorText"
+      ],
+      "properties": {
+        "indicatorId": {
+          "type": "string"
+        },
+        "indicatorText": {
+          "type": "string"
+        },
+        "observed": {
+          "type": "boolean"
+        },
+        "expectedBy": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+
+    "Recommendation": {
+      "type": "object",
+      "properties": {
+        "recommendationId": {
+          "type": "string"
+        },
+        "recommendationText": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "string"
+        }
+      }
+    },
+
+    "Decision": {
+      "type": "object",
+      "properties": {
+        "decisionId": {
+          "type": "string"
+        },
+        "decisionText": {
+          "type": "string"
+        },
+        "decisionDate": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+
+    "Outcome": {
+      "type": "object",
+      "properties": {
+        "outcomeId": {
+          "type": "string"
+        },
+        "outcomeText": {
+          "type": "string"
+        },
+        "accuracyScore": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        }
+      }
+    },
+
+    "EntityReference": {
+      "type": "object",
+      "required": [
+        "entityId"
+      ],
+      "properties": {
+        "entityId": {
+          "type": "string"
+        },
+        "canonicalName": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
+```
+
+***
+
+# Entity-Centric Knowledge Schema
+
+The knowledge layer should be separate from cases.
+
+```json
+{
+  "$id": "https://aiard.org/schema/entity.json",
+  "title": "Entity",
+  "type": "object",
+  "required": [
+    "entityId",
+    "entityType",
+    "canonicalName"
+  ],
+  "properties": {
+    "entityId": {
+      "type": "string"
+    },
+    "entityType": {
+      "type": "string"
+    },
+    "canonicalName": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Alias"
+      }
+    },
+    "attributes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Attribute"
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Relationship"
+      }
+    }
+  },
+  "$defs": {
+    "Alias": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number"
+        }
+      }
+    },
+
+    "Attribute": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {}
+      }
+    },
+
+    "Relationship": {
+      "type": "object",
+      "properties": {
+        "targetEntityId": {
+          "type": "string"
+        },
+        "relationshipType": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}
+```
+
+***
+
+# Knowledge Object Schema
+
+```json
+{
+  "$id": "https://aiard.org/schema/knowledge-object.json",
+  "title": "KnowledgeObject",
+  "type": "object",
+  "required": [
+    "knowledgeObjectId",
+    "objectType",
+    "title"
+  ],
+  "properties": {
+    "knowledgeObjectId": {
+      "type": "string"
+    },
+    "objectType": {
+      "type": "string",
+      "enum": [
+        "ACTIVITY",
+        "CONDITION",
+        "PATTERN",
+        "INDICATOR",
+        "MODEL",
+        "RULE",
+        "TACTIC",
+        "TECHNIQUE",
+        "STATE"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/KnowledgeRelationship"
+      }
+    }
+  },
+  "$defs": {
+    "KnowledgeRelationship": {
+      "type": "object",
+      "properties": {
+        "targetObjectId": {
+          "type": "string"
+        },
+        "relationshipType": {
+          "type": "string"
+        },
+        "strength": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}
+```
+
+***
+
+# Reasoning Chain Schema
+
+This is the most important schema for AI/ML.
+
+```json
+{
+  "$id": "https://aiard.org/schema/reasoning-chain.json",
+  "title": "ReasoningChain",
+  "type": "object",
+  "properties": {
+    "chainId": {
+      "type": "string"
+    },
+    "observationIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hypothesisId": {
+      "type": "string"
+    },
+    "assumptionIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recommendationIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "decisionIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "outcomeIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
+```
+
+***
+
+# ML-Friendly Training Record
+
+A normalized record for LLM fine-tuning, forecasting, and confidence calibration:
+
+```json
+{
+  "case_id": "INV-2026-001",
+  "observations": [
+    "New domain registered",
+    "Infrastructure overlaps known actor"
+  ],
+  "entities": [
+    "Actor-X",
+    "Domain-123"
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "text": "Actor-X preparing operation",
+      "likelihood": "LIKELY",
+      "confidence": "MODERATE"
+    },
+    {
+      "id": "H2",
+      "text": "Benign activity",
+      "likelihood": "POSSIBLE",
+      "confidence": "LOW"
+    }
+  ],
+  "selected_hypothesis": "H1",
+  "decision": "Increase monitoring",
+  "outcome": "Confirmed hostile activity"
+}
+```
+
+This structure provides a foundation for:
+
+* Relational storage
+* API exchange
+* Knowledge graph generation
+* RAG indexing
+* Entity resolution
+* Hypothesis ranking models
+* Confidence calibration models
+* Forecasting and decision-support agents
+* LLM reasoning trace training datasets
