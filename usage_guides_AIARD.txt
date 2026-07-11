@@ -1,0 +1,682 @@
+Documentation at **three levels simultaneously**:
+
+1. **Human Analyst Guide** (how to use it)
+2. **Machine-Readable Data Dictionary** (what every field means)
+3. **Reasoning Ontology Specification** (how concepts relate)
+
+This is critical because the database is not merely storing data—it is storing **reasoning, uncertainty, evidence, and knowledge**.
+
+***
+
+# Abductive Intelligence Analytical Reasoning Database (AIARD)
+
+## System Purpose
+
+AIARD is designed to capture:
+
+```text
+Reality
+↓
+Observation
+↓
+Evidence
+↓
+Hypothesis
+↓
+Assessment
+↓
+Decision
+↓
+Outcome
+↓
+Learning
+```
+
+while also preserving:
+
+```text
+Assumptions
+Alternatives
+Confidence
+Uncertainty
+Known Gaps
+Bias Reviews
+Knowledge Patterns
+```
+
+The goal is to make analytical reasoning:
+
+* Transparent
+* Auditable
+* Reusable
+* Machine-assisted
+* Continuously improvable
+
+***
+
+# Conceptual Model
+
+## Layer 1 — Reality Layer
+
+Represents observed reality.
+
+### Core Objects
+
+```text
+Entity
+Observation
+Source
+Claim
+Event
+Location
+Document
+```
+
+Example:
+
+```text
+Entity:
+APT-29
+
+Observation:
+Registered domain xyz.com
+
+Source:
+WHOIS
+
+Claim:
+APT-29 controls xyz.com
+```
+
+***
+
+## Layer 2 — Reasoning Layer
+
+Stores analyst thinking.
+
+### Core Objects
+
+```text
+Hypothesis
+Evidence Link
+Assumption
+Indicator
+Alternative Interpretation
+Confidence Assessment
+```
+
+Example:
+
+```text
+Hypothesis:
+APT-29 preparing access operation
+
+Evidence:
+New domain registration
+
+Assumption:
+Domain ownership unchanged
+```
+
+***
+
+## Layer 3 — Decision Layer
+
+Supports action.
+
+### Core Objects
+
+```text
+Requirement
+Question
+Recommendation
+Decision
+Outcome
+```
+
+Example:
+
+```text
+Question:
+What is the purpose of the domain?
+
+Recommendation:
+Monitor DNS activity
+
+Decision:
+Initiate collection effort
+```
+
+***
+
+## Layer 4 — Knowledge Layer
+
+Stores reusable patterns.
+
+### Core Objects
+
+```text
+Activity
+Condition
+Pattern
+Model
+Rule
+Indicator
+State
+Taxonomy
+```
+
+Example:
+
+```text
+Pattern:
+Infrastructure Preparation
+
+Activities:
+Register Domains
+Acquire Servers
+Configure Certificates
+
+Indicators:
+Domain Spike
+New Hosting Provider
+```
+
+***
+
+# Analyst Workflow
+
+## Step 1: Create Investigation
+
+```text
+Investigation
+ ├─ Title
+ ├─ Purpose
+ ├─ Priority
+ ├─ Domain
+ └─ Lead Analyst
+```
+
+Rule:
+
+```text
+Investigations contain facts,
+not conclusions.
+```
+
+***
+
+## Step 2: Record Observations
+
+Observation fields:
+
+```text
+Who observed it?
+When?
+Source?
+Confidence?
+Exact observation?
+```
+
+Good:
+
+```text
+Domain xyz.com registered
+2026-07-10
+```
+
+Bad:
+
+```text
+APT attack underway
+```
+
+The latter is a hypothesis.
+
+***
+
+## Step 3: Create Hypotheses
+
+Minimum recommended:
+
+```text
+3 hypotheses
+```
+
+Example:
+
+```text
+H1
+State actor
+
+H2
+Criminal actor
+
+H3
+Benign research project
+```
+
+Purpose:
+
+Prevent anchoring bias.
+
+***
+
+## Step 4: Map Evidence
+
+Every observation should be linked.
+
+```text
+Observation
+→ Supports Hypothesis
+
+Observation
+→ Contradicts Hypothesis
+
+Observation
+→ Neutral
+```
+
+Do not permit unlinked evidence.
+
+***
+
+## Step 5: Record Assumptions
+
+Every hypothesis should identify:
+
+```text
+Assumption
+Criticality
+Validation Status
+```
+
+Example:
+
+```text
+Infrastructure ownership unchanged
+
+Criticality: High
+```
+
+***
+
+## Step 6: Record Indicators
+
+Indicators are predictions.
+
+Example:
+
+```text
+If H1 true:
+
+Additional domains should appear
+within 30 days.
+```
+
+Indicators test hypotheses.
+
+***
+
+## Step 7: Produce Assessment
+
+Assessment contains:
+
+```text
+Likelihood
+Confidence
+Rationale
+```
+
+Example:
+
+```text
+Likely
+Moderate Confidence
+```
+
+***
+
+# Confidence Documentation Standard
+
+## Likelihood
+
+Represents probability.
+
+```text
+REMOTE
+POSSIBLE
+ROUGHLY EVEN
+LIKELY
+HIGHLY LIKELY
+```
+
+Suggested ranges:
+
+```text
+REMOTE          0%-20%
+POSSIBLE        20%-45%
+ROUGHLY EVEN    45%-55%
+LIKELY          55%-80%
+HIGHLY LIKELY   80%-100%
+```
+
+***
+
+## Confidence
+
+Represents evidentiary quality.
+
+```text
+LOW
+MODERATE
+HIGH
+```
+
+Low:
+
+```text
+Little evidence
+Conflicting evidence
+Sparse collection
+```
+
+Moderate:
+
+```text
+Some corroboration
+```
+
+High:
+
+```text
+Multiple corroborated sources
+```
+
+***
+
+# Entity Resolution Guide
+
+## Definition
+
+Entity Resolution determines:
+
+```text
+Are these references
+the same thing?
+```
+
+Example:
+
+```text
+APT29
+Cozy Bear
+NOBELIUM
+Midnight Blizzard
+```
+
+may resolve to:
+
+```text
+Entity #57
+```
+
+***
+
+## Entity Structure
+
+### Supertype
+
+```text
+ENTITY
+```
+
+Contains:
+
+```text
+Canonical Name
+Description
+Confidence
+Dates
+```
+
+***
+
+### Subtypes
+
+```text
+PERSON
+ORGANIZATION
+LOCATION
+EVENT
+DOCUMENT
+CAMPAIGN
+INFRASTRUCTURE
+TECHNICAL_OBJECT
+DIGITAL_IDENTITY
+```
+
+Rule:
+
+```text
+Every subtype row
+must have an ENTITY row.
+```
+
+***
+
+# Knowledge Layer Documentation
+
+## Activity
+
+Definition:
+
+```text
+An observable behavior
+performed by an actor.
+```
+
+Examples:
+
+```text
+Reconnaissance
+Credential Theft
+Procurement
+Recruitment
+Influence Operations
+```
+
+***
+
+## Condition
+
+Definition:
+
+```text
+A state of the environment.
+```
+
+Examples:
+
+```text
+Political Instability
+Economic Crisis
+Operational Degradation
+```
+
+***
+
+## Pattern
+
+Definition:
+
+```text
+A recurring combination of
+activities and conditions.
+```
+
+Examples:
+
+```text
+Cyber Intrusion Lifecycle
+
+Fraud Lifecycle
+
+Disinformation Campaign
+```
+
+***
+
+# Machine Learning Usage Guide
+
+## Training Data Sources
+
+High-value training records:
+
+```text
+Observations
+Entity Relationships
+Evidence Links
+Hypotheses
+Outcomes
+Indicators
+Confidence History
+```
+
+***
+
+## Supervised Learning Targets
+
+### Hypothesis Ranking
+
+Input:
+
+```text
+Observations
+Entities
+Indicators
+```
+
+Output:
+
+```text
+Most likely hypothesis
+```
+
+***
+
+### Confidence Calibration
+
+Input:
+
+```text
+Evidence Count
+Contradictions
+Source Reliability
+```
+
+Output:
+
+```text
+Expected confidence level
+```
+
+***
+
+### Outcome Prediction
+
+Input:
+
+```text
+Previous investigations
+Pattern matches
+Indicators
+```
+
+Output:
+
+```text
+Expected future state
+```
+
+***
+
+# Reasoning Ontology
+
+The machine should understand:
+
+```text
+Observation
+    ≠
+Hypothesis
+
+Hypothesis
+    ≠
+Fact
+
+Assumption
+    ≠
+Evidence
+
+Confidence
+    ≠
+Likelihood
+
+Indicator
+    =
+Predicted observation
+```
+
+These distinctions are fundamental.
+
+***
+
+# Recommended API Objects
+
+For AI/ML consumption, expose normalized JSON.
+
+Example:
+
+```json
+{
+  "investigation_id": 101,
+  "hypotheses": [
+    {
+      "id": 1,
+      "text": "Actor X controls infrastructure",
+      "likelihood": "LIKELY",
+      "confidence": "MODERATE",
+      "supporting_observations": [12,14,32],
+      "contradicting_observations": [44],
+      "assumptions": [2,7],
+      "indicators": [5,6]
+    }
+  ]
+}
+```
+
+***
+
+# Golden Rule of the Platform
+
+The most important documentation statement should be:
+
+```text
+Store observations as facts.
+
+Store hypotheses as explanations.
+
+Store assumptions separately.
+
+Store confidence separately from likelihood.
+
+Never overwrite historical reasoning.
+
+Record what was believed,
+why it was believed,
+how confident analysts were,
+what decisions were made,
+and what eventually happened.
+```
+
+That principle makes the platform valuable not just as a database, but as a long-term reasoning, learning, and knowledge-generation system for both humans and machine-learning models.
