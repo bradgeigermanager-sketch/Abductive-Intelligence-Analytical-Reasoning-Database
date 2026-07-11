@@ -1,0 +1,658 @@
+Moving from an **investigation database** to a **knowledge-reasoning ontology**.
+
+The design captures:
+
+```text
+Observation
+→ Evidence
+→ Hypothesis
+→ Decision
+→ Outcome
+```
+
+And mature analytical systems also need to capture:
+
+```text
+General Pattern
+→ Activities
+→ Conditions
+→ Indicators
+→ Observations
+→ Cases
+→ Specific Instances
+```
+
+This allows the system to learn from many investigations and build reusable knowledge.
+
+***
+
+# Layer 1: Knowledge Objects
+
+Create a supertype for reusable knowledge.
+
+```sql
+CREATE TABLE knowledge_objects (
+
+    knowledge_object_id BIGSERIAL PRIMARY KEY,
+
+    object_type VARCHAR(100),
+
+    title VARCHAR(500),
+
+    description TEXT,
+
+    confidence_score NUMERIC(5,2),
+
+    created_at TIMESTAMP,
+
+    updated_at TIMESTAMP
+);
+```
+
+Types:
+
+```text
+PATTERN
+CONDITION
+ACTIVITY
+INDICATOR
+RULE
+MODEL
+HEURISTIC
+FRAMEWORK
+TACTIC
+TECHNIQUE
+PROCEDURE
+```
+
+***
+
+# Layer 2: Activity Library
+
+Activities become generalized behaviors.
+
+```sql
+CREATE TABLE activities (
+
+    knowledge_object_id BIGINT PRIMARY KEY,
+
+    activity_category VARCHAR(200),
+
+    activity_name VARCHAR(300),
+
+    objective TEXT,
+
+    typical_duration VARCHAR(100),
+
+    FOREIGN KEY (knowledge_object_id)
+        REFERENCES knowledge_objects(knowledge_object_id)
+);
+```
+
+Examples:
+
+```text
+Credential Harvesting
+
+Reconnaissance
+
+Infrastructure Staging
+
+Narrative Amplification
+
+Financial Laundering
+
+Recruitment
+```
+
+***
+
+# Layer 3: Conditions
+
+A condition describes a state of the world.
+
+```sql
+CREATE TABLE conditions (
+
+    knowledge_object_id BIGINT PRIMARY KEY,
+
+    condition_category VARCHAR(200),
+
+    state_description TEXT,
+
+    FOREIGN KEY (knowledge_object_id)
+        REFERENCES knowledge_objects(knowledge_object_id)
+);
+```
+
+Examples:
+
+```text
+Political Instability
+
+Network Saturation
+
+Resource Scarcity
+
+Operational Security Failure
+
+Escalated Tensions
+```
+
+***
+
+# Layer 4: Indicators
+
+Indicators become reusable and independent of investigations.
+
+```sql
+CREATE TABLE generalized_indicators (
+
+    knowledge_object_id BIGINT PRIMARY KEY,
+
+    indicator_name VARCHAR(300),
+
+    indicator_type VARCHAR(100),
+
+    indicator_description TEXT,
+
+    FOREIGN KEY (knowledge_object_id)
+        REFERENCES knowledge_objects(knowledge_object_id)
+);
+```
+
+Examples:
+
+```text
+Domain registration spike
+
+Abnormal login volume
+
+Military unit movement
+
+Unusual procurement activity
+```
+
+***
+
+# Layer 5: Observable Features
+
+The smallest measurable pieces.
+
+```sql
+CREATE TABLE observable_features (
+
+    feature_id BIGSERIAL PRIMARY KEY,
+
+    feature_name VARCHAR(300),
+
+    feature_type VARCHAR(100),
+
+    description TEXT
+);
+```
+
+Examples:
+
+```text
+Account Age
+
+IP Address Change
+
+Aircraft Tail Number
+
+Purchase Order Count
+
+Login Frequency
+```
+
+***
+
+# Activities → Observable Relationships
+
+```sql
+CREATE TABLE activity_features (
+
+    activity_feature_id BIGSERIAL PRIMARY KEY,
+
+    activity_id BIGINT,
+
+    feature_id BIGINT,
+
+    significance_score NUMERIC(5,2),
+
+    FOREIGN KEY (activity_id)
+        REFERENCES activities(knowledge_object_id),
+
+    FOREIGN KEY (feature_id)
+        REFERENCES observable_features(feature_id)
+);
+```
+
+***
+
+# Conditions → Activities
+
+A condition may enable activities.
+
+```sql
+CREATE TABLE condition_activity_links (
+
+    link_id BIGSERIAL PRIMARY KEY,
+
+    condition_id BIGINT,
+
+    activity_id BIGINT,
+
+    influence_type VARCHAR(50),
+
+    influence_strength NUMERIC(5,2),
+
+    FOREIGN KEY (condition_id)
+        REFERENCES conditions(knowledge_object_id),
+
+    FOREIGN KEY (activity_id)
+        REFERENCES activities(knowledge_object_id)
+);
+```
+
+Examples:
+
+```text
+Political Instability
+    INCREASES
+Disinformation Campaigns
+
+Resource Scarcity
+    INCREASES
+Smuggling Activity
+```
+
+***
+
+# Layer 6: Pattern Library
+
+One of the most important additions.
+
+```sql
+CREATE TABLE patterns (
+
+    knowledge_object_id BIGINT PRIMARY KEY,
+
+    pattern_type VARCHAR(100),
+
+    abstraction_level INTEGER,
+
+    FOREIGN KEY (knowledge_object_id)
+        REFERENCES knowledge_objects(knowledge_object_id)
+);
+```
+
+Examples:
+
+```text
+Kill Chain
+
+Fraud Lifecycle
+
+Insider Threat Escalation
+
+Radicalization Process
+
+Campaign Preparation Pattern
+```
+
+***
+
+# Pattern Stages
+
+```sql
+CREATE TABLE pattern_stages (
+
+    stage_id BIGSERIAL PRIMARY KEY,
+
+    pattern_id BIGINT,
+
+    stage_sequence INTEGER,
+
+    stage_name VARCHAR(300),
+
+    stage_description TEXT,
+
+    FOREIGN KEY (pattern_id)
+        REFERENCES patterns(knowledge_object_id)
+);
+```
+
+Example:
+
+```text
+Reconnaissance
+Resource Development
+Operational Preparation
+Execution
+Exploitation
+```
+
+***
+
+# Layer 7: Knowledge Rules
+
+Codify analyst knowledge.
+
+```sql
+CREATE TABLE knowledge_rules (
+
+    knowledge_object_id BIGINT PRIMARY KEY,
+
+    rule_expression TEXT,
+
+    rationale TEXT,
+
+    FOREIGN KEY (knowledge_object_id)
+        REFERENCES knowledge_objects(knowledge_object_id)
+);
+```
+
+Examples:
+
+```text
+IF
+three supporting indicators occur
+
+THEN
+increase hypothesis confidence
+```
+
+***
+
+# Layer 8: Causal Links
+
+Supports generalized reasoning.
+
+```sql
+CREATE TABLE causal_relationships (
+
+    causal_id BIGSERIAL PRIMARY KEY,
+
+    source_object_id BIGINT,
+
+    target_object_id BIGINT,
+
+    relationship_type VARCHAR(100),
+
+    strength NUMERIC(5,2),
+
+    confidence_score NUMERIC(5,2),
+
+    FOREIGN KEY (source_object_id)
+        REFERENCES knowledge_objects(knowledge_object_id),
+
+    FOREIGN KEY (target_object_id)
+        REFERENCES knowledge_objects(knowledge_object_id)
+);
+```
+
+Examples:
+
+```text
+Economic Stress
+→ increases
+Fraud
+
+Leadership Removal
+→ increases
+Organizational Fragmentation
+```
+
+***
+
+# Layer 9: Case-to-Knowledge Mapping
+
+Connect specific investigations to generalized knowledge.
+
+```sql
+CREATE TABLE investigation_knowledge_links (
+
+    link_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT,
+
+    knowledge_object_id BIGINT,
+
+    relevance_score NUMERIC(5,2),
+
+    FOREIGN KEY (investigation_id)
+        REFERENCES investigations(investigation_id),
+
+    FOREIGN KEY (knowledge_object_id)
+        REFERENCES knowledge_objects(knowledge_object_id)
+);
+```
+
+This creates:
+
+```text
+Case A
+matches
+Pattern X
+
+Case B
+matches
+Pattern X
+
+Case C
+matches
+Pattern X
+```
+
+***
+
+# Layer 10: Analytic Models
+
+Store reasoning frameworks themselves.
+
+```sql
+CREATE TABLE analytic_models (
+
+    knowledge_object_id BIGINT PRIMARY KEY,
+
+    model_type VARCHAR(100),
+
+    model_description TEXT,
+
+    version_number VARCHAR(50),
+
+    FOREIGN KEY (knowledge_object_id)
+        REFERENCES knowledge_objects(knowledge_object_id)
+);
+```
+
+Examples:
+
+```text
+ACH
+
+APEX
+
+RAIL
+
+SAGE
+
+Kill Chain Analysis
+
+Diamond Model
+```
+
+***
+
+# Layer 11: Hypothesis Templates
+
+Store reusable explanations.
+
+```sql
+CREATE TABLE hypothesis_templates (
+
+    template_id BIGSERIAL PRIMARY KEY,
+
+    template_name VARCHAR(300),
+
+    hypothesis_structure TEXT,
+
+    applicability TEXT
+);
+```
+
+Example:
+
+```text
+Observed activity likely represents
+{ACTOR}
+conducting
+{ACTIVITY}
+to achieve
+{OBJECTIVE}
+under
+{CONDITION}
+```
+
+***
+
+# Layer 12: Ontology / Taxonomy Support
+
+Knowledge classification hierarchy.
+
+```sql
+CREATE TABLE taxonomy_nodes (
+
+    taxonomy_id BIGSERIAL PRIMARY KEY,
+
+    parent_taxonomy_id BIGINT,
+
+    node_name VARCHAR(300),
+
+    node_type VARCHAR(100),
+
+    FOREIGN KEY (parent_taxonomy_id)
+        REFERENCES taxonomy_nodes(taxonomy_id)
+);
+```
+
+Example:
+
+```text
+Activities
+ ├─ Cyber
+ │   ├─ Reconnaissance
+ │   ├─ Persistence
+ │   └─ Exfiltration
+ │
+ ├─ Criminal
+ └─ Influence
+```
+
+***
+
+# Layer 13: Abstract State Models
+
+A powerful concept.
+
+```sql
+CREATE TABLE state_models (
+
+    model_id BIGSERIAL PRIMARY KEY,
+
+    model_name VARCHAR(300),
+
+    description TEXT
+);
+```
+
+```sql
+CREATE TABLE states (
+
+    state_id BIGSERIAL PRIMARY KEY,
+
+    model_id BIGINT,
+
+    state_name VARCHAR(200),
+
+    FOREIGN KEY(model_id)
+        REFERENCES state_models(model_id)
+);
+```
+
+```sql
+CREATE TABLE state_transitions (
+
+    transition_id BIGSERIAL PRIMARY KEY,
+
+    source_state_id BIGINT,
+
+    target_state_id BIGINT,
+
+    trigger_condition TEXT,
+
+    probability NUMERIC(5,2),
+
+    FOREIGN KEY(source_state_id)
+        REFERENCES states(state_id),
+
+    FOREIGN KEY(target_state_id)
+        REFERENCES states(state_id)
+);
+```
+
+Example:
+
+```text
+Normal
+→ Suspicious
+→ Active Threat
+→ Confirmed Incident
+→ Remediation
+```
+
+***
+
+# Ultimate Architecture
+
+The complete system becomes:
+
+```text
+Reality Layer
+├── Entities
+├── Observations
+├── Events
+└── Claims
+
+Reasoning Layer
+├── Hypotheses
+├── Assumptions
+├── ACH
+├── Confidence
+└── Decisions
+
+Knowledge Layer
+├── Activities
+├── Conditions
+├── Patterns
+├── Indicators
+├── Rules
+├── Models
+└── Taxonomies
+
+Learning Layer
+├── Outcomes
+├── Evaluations
+├── Lessons Learned
+└── Confidence Calibration
+
+Prediction Layer
+├── States
+├── Transitions
+├── Indicators
+└── Forecasts
+```
+
+This transforms the design into a **knowledge-centric abductive reasoning platform** capable of not only recording specific cases, but also accumulating generalized knowledge about activities, conditions, patterns, causal relationships, and state transitions that can be reused across future investigations.
