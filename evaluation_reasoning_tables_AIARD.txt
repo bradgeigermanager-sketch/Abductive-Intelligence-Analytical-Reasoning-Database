@@ -1,0 +1,711 @@
+These are the tables that turn the system into a structured intelligence reasoning platform with an attached investigation database.
+
+The key shift is:
+
+```text
+Observations → Information
+
+Hypotheses → Explanations
+
+Requirements → Questions
+
+Gaps → Unknowns
+
+Bias Checks → Reasoning Quality
+
+Decisions → Action
+
+Outcomes → Learning
+```
+
+***
+
+# Priority Intelligence Requirements (PIRs)
+
+Tracks the questions leadership actually wants answered.
+
+```sql
+CREATE TABLE priority_intelligence_requirements (
+
+    pir_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT,
+
+    pir_code VARCHAR(100),
+
+    title VARCHAR(500),
+
+    requirement_text TEXT NOT NULL,
+
+    priority_level VARCHAR(20),
+
+    requester_entity_id BIGINT,
+
+    status VARCHAR(50),
+
+    due_date DATE,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY(investigation_id)
+        REFERENCES investigations(investigation_id),
+
+    FOREIGN KEY(requester_entity_id)
+        REFERENCES entities(entity_id)
+);
+```
+
+Example:
+
+```text
+PIR-001
+
+Will Actor A conduct ransomware operations
+against healthcare organizations in the next 90 days?
+```
+
+***
+
+# Key Intelligence Questions (KIQs)
+
+Questions supporting a PIR.
+
+```sql
+CREATE TABLE key_intelligence_questions (
+
+    kiq_id BIGSERIAL PRIMARY KEY,
+
+    pir_id BIGINT NOT NULL,
+
+    question_text TEXT NOT NULL,
+
+    priority_level VARCHAR(20),
+
+    status VARCHAR(50),
+
+    FOREIGN KEY(pir_id)
+        REFERENCES priority_intelligence_requirements(pir_id)
+);
+```
+
+Example:
+
+```text
+Has Actor A acquired new infrastructure?
+
+Has Actor A modified targeting?
+```
+
+***
+
+# Collection Requirements
+
+Tracks what information must be gathered.
+
+```sql
+CREATE TABLE collection_requirements (
+
+    collection_requirement_id BIGSERIAL PRIMARY KEY,
+
+    kiq_id BIGINT,
+
+    requirement_text TEXT NOT NULL,
+
+    collection_type VARCHAR(100),
+
+    priority_level VARCHAR(20),
+
+    status VARCHAR(50),
+
+    assigned_to BIGINT,
+
+    due_date DATE,
+
+    FOREIGN KEY(kiq_id)
+        REFERENCES key_intelligence_questions(kiq_id),
+
+    FOREIGN KEY(assigned_to)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+Examples:
+
+```text
+Identify infrastructure associated with Actor A.
+
+Acquire malware samples.
+
+Monitor domain registrations.
+```
+
+***
+
+# Information Gaps
+
+Tracks unknowns.
+
+```sql
+CREATE TABLE information_gaps (
+
+    information_gap_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT NOT NULL,
+
+    gap_description TEXT NOT NULL,
+
+    severity VARCHAR(20),
+
+    identified_by BIGINT,
+
+    identified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    resolved BOOLEAN DEFAULT FALSE,
+
+    resolved_date TIMESTAMP,
+
+    FOREIGN KEY(investigation_id)
+        REFERENCES investigations(investigation_id),
+
+    FOREIGN KEY(identified_by)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+Examples:
+
+```text
+Unknown command-and-control operator.
+
+Unknown malware delivery vector.
+```
+
+***
+
+# Gap-to-Hypothesis Mapping
+
+Shows which hypotheses are affected by a gap.
+
+```sql
+CREATE TABLE hypothesis_information_gaps (
+
+    hypothesis_gap_id BIGSERIAL PRIMARY KEY,
+
+    hypothesis_id BIGINT,
+
+    information_gap_id BIGINT,
+
+    impact_level VARCHAR(20),
+
+    FOREIGN KEY(hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id),
+
+    FOREIGN KEY(information_gap_id)
+        REFERENCES information_gaps(information_gap_id)
+);
+```
+
+***
+
+# Assumption Tracking Framework
+
+Expands the basic assumptions table.
+
+```sql
+CREATE TABLE assumption_validation_events (
+
+    validation_event_id BIGSERIAL PRIMARY KEY,
+
+    assumption_id BIGINT,
+
+    event_date TIMESTAMP,
+
+    validation_result VARCHAR(50),
+
+    evidence TEXT,
+
+    analyst_id BIGINT,
+
+    FOREIGN KEY(assumption_id)
+        REFERENCES assumptions(assumption_id),
+
+    FOREIGN KEY(analyst_id)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+Example:
+
+```text
+Assumption validated.
+
+Assumption disproved.
+
+Assumption remains unknown.
+```
+
+***
+
+# Analysis of Competing Hypotheses (ACH)
+
+This is very useful for abductive reasoning.
+
+```sql
+CREATE TABLE competing_hypotheses (
+
+    ach_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT,
+
+    title VARCHAR(500),
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY(investigation_id)
+        REFERENCES investigations(investigation_id)
+);
+```
+
+***
+
+# ACH Matrix
+
+Evidence vs. hypothesis scoring.
+
+```sql
+CREATE TABLE ach_matrix (
+
+    ach_matrix_id BIGSERIAL PRIMARY KEY,
+
+    ach_id BIGINT,
+
+    hypothesis_id BIGINT,
+
+    observation_id BIGINT,
+
+    consistency_score INTEGER,
+
+    comments TEXT,
+
+    FOREIGN KEY(ach_id)
+        REFERENCES competing_hypotheses(ach_id),
+
+    FOREIGN KEY(hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id),
+
+    FOREIGN KEY(observation_id)
+        REFERENCES observations(observation_id)
+);
+```
+
+Suggested scale:
+
+```text
++2 Strongly Consistent
++1 Consistent
+ 0 Neutral
+-1 Inconsistent
+-2 Strongly Inconsistent
+```
+
+***
+
+# Deception Indicators
+
+Tracks signs information may be manipulated.
+
+```sql
+CREATE TABLE deception_indicators (
+
+    deception_indicator_id BIGSERIAL PRIMARY KEY,
+
+    observation_id BIGINT,
+
+    indicator_type VARCHAR(100),
+
+    description TEXT,
+
+    severity VARCHAR(20),
+
+    confidence_score NUMERIC(5,2),
+
+    FOREIGN KEY(observation_id)
+        REFERENCES observations(observation_id)
+);
+```
+
+Examples:
+
+```text
+Narrative inconsistency
+
+Metadata anomaly
+
+Infrastructure impersonation
+
+Timing manipulation
+
+Synthetic media indicators
+```
+
+***
+
+# Alternative Interpretation Registry
+
+Very valuable for preventing anchoring.
+
+```sql
+CREATE TABLE alternative_interpretations (
+
+    interpretation_id BIGSERIAL PRIMARY KEY,
+
+    observation_id BIGINT,
+
+    interpretation_text TEXT,
+
+    plausibility_score INTEGER,
+
+    analyst_id BIGINT,
+
+    FOREIGN KEY(observation_id)
+        REFERENCES observations(observation_id),
+
+    FOREIGN KEY(analyst_id)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+Purpose:
+
+```text
+Observation:
+
+Server moved.
+
+Possible Interpretation A:
+Operational relocation.
+
+Possible Interpretation B:
+Compromise response.
+
+Possible Interpretation C:
+Cloud migration.
+```
+
+***
+
+# Cognitive Bias Library
+
+Reference table.
+
+```sql
+CREATE TABLE cognitive_biases (
+
+    bias_id BIGSERIAL PRIMARY KEY,
+
+    bias_name VARCHAR(200),
+
+    description TEXT
+);
+```
+
+Seed values:
+
+```text
+Confirmation Bias
+Anchoring Bias
+Availability Bias
+Groupthink
+Mirror Imaging
+Recency Bias
+Selection Bias
+Outcome Bias
+```
+
+***
+
+# Bias Review
+
+Checks reasoning quality.
+
+```sql
+CREATE TABLE bias_reviews (
+
+    bias_review_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT,
+
+    hypothesis_id BIGINT,
+
+    bias_id BIGINT,
+
+    review_notes TEXT,
+
+    mitigation_actions TEXT,
+
+    reviewed_by BIGINT,
+
+    reviewed_at TIMESTAMP,
+
+    FOREIGN KEY(investigation_id)
+        REFERENCES investigations(investigation_id),
+
+    FOREIGN KEY(hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id),
+
+    FOREIGN KEY(bias_id)
+        REFERENCES cognitive_biases(bias_id),
+
+    FOREIGN KEY(reviewed_by)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+***
+
+# Confidence Evolution
+
+Tracks changing assessments.
+
+```sql
+CREATE TABLE confidence_history (
+
+    confidence_history_id BIGSERIAL PRIMARY KEY,
+
+    hypothesis_id BIGINT,
+
+    confidence_code VARCHAR(20),
+
+    likelihood_code VARCHAR(30),
+
+    rationale TEXT,
+
+    updated_by BIGINT,
+
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY(hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id),
+
+    FOREIGN KEY(updated_by)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+This allows:
+
+```text
+Jan:
+Likely / Low Confidence
+
+Feb:
+Likely / Moderate Confidence
+
+Mar:
+Highly Likely / High Confidence
+```
+
+***
+
+# Decision Support Recommendations
+
+Links analysis to action.
+
+```sql
+CREATE TABLE recommendations (
+
+    recommendation_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT,
+
+    hypothesis_id BIGINT,
+
+    recommendation_text TEXT,
+
+    recommended_action VARCHAR(500),
+
+    risk_if_ignored TEXT,
+
+    expected_benefit TEXT,
+
+    priority_level VARCHAR(20),
+
+    FOREIGN KEY(investigation_id)
+        REFERENCES investigations(investigation_id),
+
+    FOREIGN KEY(hypothesis_id)
+        REFERENCES hypotheses(hypothesis_id)
+);
+```
+
+***
+
+# Outcome Evaluation
+
+Institutional learning.
+
+```sql
+CREATE TABLE outcome_evaluations (
+
+    evaluation_id BIGSERIAL PRIMARY KEY,
+
+    outcome_id BIGINT,
+
+    assessment_accuracy_score INTEGER,
+
+    confidence_calibration_score INTEGER,
+
+    lessons_learned TEXT,
+
+    corrective_actions TEXT,
+
+    evaluated_by BIGINT,
+
+    evaluated_at TIMESTAMP,
+
+    FOREIGN KEY(outcome_id)
+        REFERENCES outcomes(outcome_id),
+
+    FOREIGN KEY(evaluated_by)
+        REFERENCES analysts(analyst_id)
+);
+```
+
+***
+
+# Analytic Question Registry
+
+A powerful addition.
+
+```sql
+CREATE TABLE analytic_questions (
+
+    analytic_question_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT,
+
+    question_text TEXT NOT NULL,
+
+    question_type VARCHAR(100),
+
+    parent_question_id BIGINT,
+
+    status VARCHAR(50),
+
+    FOREIGN KEY(investigation_id)
+        REFERENCES investigations(investigation_id),
+
+    FOREIGN KEY(parent_question_id)
+        REFERENCES analytic_questions(analytic_question_id)
+);
+```
+
+Example hierarchy:
+
+```text
+Will Actor A attack?
+
+├─ What infrastructure exists?
+├─ What capability exists?
+├─ What intent exists?
+└─ What timing indicators exist?
+```
+
+***
+
+# Reasoning Chain Objects
+
+This is the crown jewel.
+
+```sql
+CREATE TABLE reasoning_chain_links (
+
+    reasoning_chain_id BIGSERIAL PRIMARY KEY,
+
+    investigation_id BIGINT,
+
+    source_object_type VARCHAR(100),
+
+    source_object_id BIGINT,
+
+    target_object_type VARCHAR(100),
+
+    target_object_id BIGINT,
+
+    relationship_description TEXT,
+
+    confidence_score NUMERIC(5,2),
+
+    FOREIGN KEY(investigation_id)
+        REFERENCES investigations(investigation_id)
+);
+```
+
+Captures:
+
+```text
+Observation
+    →
+Hypothesis
+
+Hypothesis
+    →
+Recommendation
+
+Recommendation
+    →
+Decision
+
+Decision
+    →
+Outcome
+```
+
+***
+
+# Final Maturity Model
+
+With all components, the architecture becomes:
+
+```text
+Entity Layer
+│
+├── Persons
+├── Organizations
+├── Infrastructure
+├── Campaigns
+├── Events
+└── Technical Objects
+
+Observation Layer
+│
+├── Sources
+├── Observations
+├── Claims
+└── Evidence
+
+Reasoning Layer
+│
+├── Hypotheses
+├── ACH
+├── Assumptions
+├── Indicators
+├── Alternatives
+└── Bias Reviews
+
+Decision Layer
+│
+├── Requirements
+├── Recommendations
+├── Decisions
+└── Outcomes
+
+Learning Layer
+│
+├── Confidence History
+├── Outcome Evaluation
+├── Lessons Learned
+└── Assumption Validation
+```
+
+At this point, the database captures not just *what analysts concluded*, but *how they reasoned, what they didn't know, what alternatives they considered, how confident they were, what actions were taken, and whether those actions proved correct*. That's the foundation of a true abductive-reasoning intelligence platform.
